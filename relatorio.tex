@@ -1,0 +1,459 @@
+\documentclass[12pt]{spieman}  
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{tocloft}
+\usepackage{listings}
+\setlength{\parindent}{0pt}
+\title{Documentação do primeiro trabalho prático da disciplina de Estrutura de Dados 1}
+
+\author{Bruno Soares Veríssimo}
+\affil{Universidade Federal de Ouro Preto - UFOP}
+
+\renewcommand{\cftdotsep}{\cftnodots}
+\cftpagenumbersoff{figure}
+\cftpagenumbersoff{table} 
+\begin{document} 
+\maketitle
+
+\section{Introdução}
+\label{sect:intro}  
+
+O Problema do Caixeiro Viajante é um dos desafios mais conhecidos na área da computação. Ele envolve um caixeiro viajante que precisa visitar um conjunto de cidades distintas e retornar à cidade de origem, buscando encontrar a trajetória que resulta na menor distância total de viagem. O desafio é encontrar a ordem de visita das cidades que minimize a distância percorrida.
+
+O problema é relevante em diversas aplicações do mundo real, como planejamento de rotas para entregas, logística, circuitos de computadores, entre outros. A sua complexidade aumenta exponencialmente com o número de cidades envolvidas, o que torna o desenvolvimento de algoritmos eficientes para resolvê-lo uma tarefa desafiadora.
+
+Neste programa, apresentamos uma solução que utiliza a abordagem de força bruta e recursividade para encontrar o caminho mais curto. Isso implica na geração de todas as permutações possíveis das cidades e na avaliação de todas elas para determinar a solução.
+
+A documentação a seguir descreve a implementação, os testes realizados, a análise dos resultados e as conclusões do programa. Além disso, apresenta detalhes sobre as principais funções e estruturas utilizadas na resolução do Problema do Caixeiro Viajante.
+
+Compreender como essa abordagem funciona e suas limitações é fundamental para entender o funcionamento do programa e sua eficácia em diferentes cenários.
+
+
+\section{Implementação}
+
+\subsection{Uso de Tipos Abstratos de Dados (TAD)}
+Para manter o código organizado e modular, foi adotada a abordagem de Tipos Abstratos de Dados (TAD). Isso ajuda a encapsular os detalhes da estrutura de dados usada para representar o grafo ponderado e as operações que podem ser executadas sobre ele. O TAD "GrafoPonderado" é definido no arquivo grafo.h da seguinte maneira:
+\begin{lstlisting}[language=C]
+#ifndef GRAFO_H
+#define GRAFO_H
+typedef struct GrafoPonderado GrafoPonderado;
+GrafoPonderado* alocarGrafo(int numCidades);
+void desalocarGrafo(GrafoPonderado* grafo);
+void leGrafo(GrafoPonderado* grafo);
+void encontraCaminho(GrafoPonderado* grafo, int* melhorCaminho);
+void imprimeCaminho(GrafoPonderado* grafo, int* caminho, int distancia);
+int obterDistancia(GrafoPonderado* grafo, int cidadeOrigem, int cidadeDestino);
+#endif
+\end{lstlisting}
+
+Aqui, o TAD GrafoPonderado é uma estrutura opaca que contém detalhes internos ocultos da implementação do grafo ponderado. Isso permite que o programa principal (main.c) interaja com o grafo apenas por meio das funções definidas no TAD, garantindo a modularidade e a encapsulação de dados.
+
+\subsection{Recursividade}
+O programa utiliza recursão para encontrar o caminho mais curto em um grafo ponderado. A função principal encontraCaminho chama uma função auxiliar encontraCaminhoRec, que é responsável por explorar todas as possíveis permutações das cidades para encontrar o caminho mais curto. Aqui estão os principais aspectos do uso da recursividade na implementação:
+
+A função encontraCaminhoRec é definida para explorar todas as permutações de cidades. Ela recebe a posição atual, a distância percorrida até o momento, o contador de cidades visitadas, arrays para rastrear as cidades visitadas e o caminho atual, o array para armazenar o melhor caminho encontrado, o número total de cidades e o grafo.
+
+A base da recursão ocorre quando o contador de cidades visitadas atinge o número total de cidades menos um, o que significa que todas as cidades foram visitadas, e é hora de verificar se há um ciclo completo de volta à cidade de origem. Nesse ponto, a distância total é calculada e comparada com a menor distância registrada até o momento. Se um caminho mais curto for encontrado, ele é armazenado no array melhorCaminho.
+
+Em seguida, a função percorre todas as cidades adjacentes à cidade atual, verifica se a cidade adjacente ainda não foi visitada e, se for o caso, marca-a como visitada, atualiza o caminho atual e a distância e faz uma chamada recursiva para explorar a próxima cidade. Após a recursão, a cidade adjacente é desmarcada como não visitada para permitir a exploração de outros caminhos.
+
+Esse processo de recursão e exploração de todas as permutações continua até que todas as possibilidades tenham sido exploradas.
+
+No final, a função principal encontraCaminho configura as estruturas necessárias, como o array visitado, chama a função encontraCaminhoRec, encontra o melhor caminho e, finalmente, libera a memória alocada para os arrays de controle.
+
+Essa abordagem de recursividade e a divisão das tarefas entre as funções do TAD garantem que o programa seja modular, fácil de entender e que a busca pelo caminho mais curto seja realizada de maneira sistemática e eficaz.
+Assim, segue a implementação de grafo.c:
+\begin{lstlisting}[language=C]
+#include "grafo.h" // Inclui o cabeçalho "grafo.h" que contém as declarações de funções e estruturas.
+#include <stdio.h> // Inclui a biblioteca padrão de entrada/saída.
+#include <stdlib.h> // Inclui a biblioteca padrão de alocação de memória.
+#include <limits.h> // Inclui a biblioteca que fornece constantes de limites, incluindo INT_MAX.
+
+struct GrafoPonderado { // Define uma estrutura chamada GrafoPonderado para representar o grafo.
+    int numCidades; // Número de cidades no grafo.
+    int** matrizAdj; // Matriz de adjacência para representar as distâncias entre as cidades.
+};
+
+GrafoPonderado* alocarGrafo(int numCidades) { // Função para alocar memória para uma estrutura GrafoPonderado.
+    GrafoPonderado* grafo = (GrafoPonderado*)malloc(sizeof(GrafoPonderado)); // Aloca memória para a estrutura.
+    if (grafo == NULL) { // Verifica se a alocação foi bem-sucedida.
+        // Tratamento de erro de alocação de memória.
+        exit(1); // Encerra o programa com código de erro 1 ou toma alguma outra ação apropriada.
+    }
+    grafo->numCidades = numCidades; // Inicializa o número de cidades no grafo.
+    grafo->matrizAdj = (int**)malloc(numCidades * sizeof(int*)); // Aloca memória para a matriz de adjacência.
+    if (grafo->matrizAdj == NULL) { // Verifica se a alocação da matriz foi bem-sucedida.
+        // Tratamento de erro de alocação de memória.
+        free(grafo); // Libera a memória alocada para a estrutura GrafoPonderado.
+        exit(1); // Encerra o programa com código de erro 1 ou toma alguma outra ação apropriada.
+    }
+    for (int i = 0; i < numCidades; i++) {
+        grafo->matrizAdj[i] = (int*)malloc(numCidades * sizeof(int)); // Aloca memória para as distâncias entre as cidades.
+
+        if (grafo->matrizAdj[i] == NULL) { // Verifica se a alocação das distâncias foi bem-sucedida.
+            // Tratamento de erro de alocação de memória.
+            free(grafo->matrizAdj); // Libera a memória alocada para a matriz de adjacência.
+            free(grafo); // Libera a memória alocada para a estrutura GrafoPonderado.
+            exit(1); // Encerra o programa com código de erro 1 ou toma alguma outra ação apropriada.
+        }
+    }
+    // Inicializa a matriz de adjacência com distâncias iniciais.
+    for (int i = 0; i < numCidades; i++) {
+        for (int j = 0; j < numCidades; j++) {
+            grafo->matrizAdj[i][j] = 0; // Inicializa as distâncias com 0.
+        }
+    }
+    return grafo; // Retorna a estrutura GrafoPonderado alocada.
+}
+
+void desalocarGrafo(GrafoPonderado* grafo) {
+    if (grafo != NULL) { // Verifica se o ponteiro para a estrutura GrafoPonderado é válido.
+        if (grafo->matrizAdj != NULL) { // Verifica se o ponteiro para a matriz de adjacência é válido.
+            for (int i = 0; i < grafo->numCidades; i++) { // Loop para percorrer todas as linhas da matriz.
+                free(grafo->matrizAdj[i]); // Libera a memória alocada para as distâncias da cidade atual.
+            }
+            free(grafo->matrizAdj); // Libera a memória alocada para a matriz de adjacência em si.
+        }
+        free(grafo); // Libera a memória alocada para a estrutura GrafoPonderado.
+    }
+}
+
+void leGrafo(GrafoPonderado* grafo) {
+    int numCidades = grafo->numCidades; // Obtém o número de cidades do grafo.
+    for (int i = 0; i < numCidades; i++) { // Loop externo para percorrer as cidades de origem.
+        for (int j = 0; j < numCidades; j++) { // Loop interno para percorrer as cidades de destino.
+            int origem, destino, distancia; // Declara variáveis para armazenar dados lidos.
+            scanf("%d %d %d", &origem, &destino, &distancia); // Lê três valores da entrada padrão.
+            grafo->matrizAdj[origem][destino] = distancia; // Atualiza a matriz de adjacência com a distância entre origem e destino.
+        }
+    }
+}
+
+// Função para obter a distância entre duas cidades no grafo.
+int obterDistancia(GrafoPonderado* grafo, int cidadeOrigem, int cidadeDestino) {
+    // Verifica se as cidades fornecidas são válidas (dentro dos limites do grafo).
+    if (cidadeOrigem >= 0 && cidadeOrigem < grafo->numCidades && cidadeDestino >= 0 && cidadeDestino < grafo->numCidades) {
+        // Retorna a distância armazenada na matriz de adjacência para as cidades fornecidas.
+        return grafo->matrizAdj[cidadeOrigem][cidadeDestino];
+    } else {
+        // Se as cidades não forem válidas, retorna -1 para indicar um erro ou distância inválida.
+        return -1;
+    }
+}
+
+// Função recursiva para encontrar o melhor caminho em um grafo ponderado.
+void encontraCaminhoRec(int posicao, int distancia, int contador, int* visitado, int* caminhoAtual, int* melhorCaminho, int numCidades, GrafoPonderado* grafo, int* menorDistancia) {
+    // Verifica se o contador alcançou o número total de cidades no grafo.
+    if (contador == numCidades - 1) {
+        // Se o contador atingir o número de cidades - 1, significa que visitamos todas as cidades.
+        // Verifica se há uma aresta de retorno para a cidade de origem (ciclo completo) e se a distância total é menor.
+        if (grafo->matrizAdj[posicao][0] != 0 && distancia + grafo->matrizAdj[posicao][0] < *menorDistancia) {
+            // Se encontrarmos um caminho mais curto, atualizamos o menorDistancia e o melhorCaminho.
+            *menorDistancia = distancia + grafo->matrizAdj[posicao][0];
+            for (int i = 0; i < numCidades; i++) {
+                melhorCaminho[i] = caminhoAtual[i];
+            }
+        }
+        return; // Retorna da recursão.
+    }
+    // Percorre as próximas cidades a serem visitadas a partir da posição atual.
+    for (int proximaCidade = 0; proximaCidade < numCidades; proximaCidade++) {
+        if (grafo->matrizAdj[posicao][proximaCidade] != 0 && visitado[proximaCidade] == 0) {
+            // Verifica se existe uma aresta para a próxima cidade e se essa cidade ainda não foi visitada.
+            // Marcamos a próxima cidade como visitada, atualizamos o caminho atual e a distância.
+            visitado[proximaCidade] = 1;
+            caminhoAtual[contador] = proximaCidade;
+            // Chamamos a função recursivamente para explorar o próximo nível de cidades.
+            encontraCaminhoRec(proximaCidade, distancia + grafo->matrizAdj[posicao][proximaCidade], contador + 1, visitado, caminhoAtual, melhorCaminho, numCidades, grafo, menorDistancia);
+            // Desmarcamos a próxima cidade como visitada após a recursão para explorar outros caminhos.
+            visitado[proximaCidade] = 0;
+        }
+    }
+}
+
+// Função para encontrar o caminho mais curto em um grafo ponderado usando força bruta.
+void encontraCaminho(GrafoPonderado* grafo, int* melhorCaminho) {
+    int numCidades = grafo->numCidades;
+    // Aloca um array para controlar as cidades visitadas.
+    int* visitado = (int*)malloc(numCidades * sizeof(int));
+    // Aloca um array para rastrear o caminho atual.
+    int* caminhoAtual = (int*)malloc(numCidades * sizeof(int));
+    // Inicializa a menorDistancia com um valor máximo.
+    int menorDistancia = INT_MAX;
+    // Marca a cidade de origem (0) como visitada e inicia o caminho atual.
+    for (int i = 0; i < numCidades; i++) {
+        visitado[i] = 0;
+    }
+    visitado[0] = 1;
+    caminhoAtual[0] = 0;
+    // Chama a função encontraCaminhoRec para encontrar o caminho mais curto.
+    encontraCaminhoRec(0, 0, 0, visitado, caminhoAtual, melhorCaminho, numCidades, grafo, &menorDistancia);
+    // Libera a memória alocada para os arrays de controle.
+    free(visitado);
+    free(caminhoAtual);
+}
+
+// Função para imprimir o caminho mais curto encontrado e a distância total.
+void imprimeCaminho(GrafoPonderado* grafo, int* caminho, int distancia) {
+    // Imprime a cidade de origem (0) para iniciar o caminho.
+    printf("0 ");
+    // Percorre as cidades do caminho, exceto a última, e as imprime.
+    for (int i = 0; i < grafo->numCidades - 1; i++) {
+        printf("%d ", caminho[i]);
+    }
+    // Imprime a cidade de origem (0) novamente para completar o ciclo.
+    printf("0\n");
+    // Imprime a distância total do caminho encontrado.
+    printf("%d\n", distancia);
+}
+\end{lstlisting}
+\subsection{main.c}
+A função main() é o ponto de entrada do programa, onde a execução é iniciada. Esta função é responsável por coordenar a execução geral do programa e interagir com o usuário. Aqui estão os principais elementos da função main():
+\begin{lstlisting}[language=C]
+#include "grafo.h" // Inclui a definição das estruturas e funções do grafo.
+#include <stdio.h> // Inclui a biblioteca padrão para entrada/saída.
+#include <stdlib.h> // Inclui a biblioteca padrão de alocação de memória.
+int main() {
+    int numCidades;
+    scanf("%d", &numCidades); // Lê o número de cidades a partir da entrada padrão.
+    // Aloca espaço na memória para um grafo ponderado com 'numCidades'.
+    GrafoPonderado* grafo = alocarGrafo(numCidades);
+    // Lê as informações das distâncias entre as cidades e as armazena no grafo.
+    leGrafo(grafo);
+    // Aloca memória para armazenar o melhor caminho encontrado, exceto a cidade de origem.
+    int* melhorCaminho = (int*)malloc((numCidades - 1) * sizeof(int));
+    // Encontra o caminho mais curto através do grafo.
+    encontraCaminho(grafo, melhorCaminho);
+    int distancia = 0; // Inicializa a variável que armazenará a distância total do caminho.
+    // Calcula a distância total percorrida ao somar as distâncias entre as cidades do caminho.
+    for (int i = 0; i < numCidades - 1; i++) {
+        int cidadeOrigem = melhorCaminho[i];
+        int cidadeDestino = melhorCaminho[i + 1];
+        distancia += obterDistancia(grafo, cidadeOrigem, cidadeDestino);
+    }
+    // Adiciona a distância entre a última cidade e a cidade de origem para fechar o ciclo.
+    distancia += obterDistancia(grafo, melhorCaminho[numCidades - 1], melhorCaminho[0]);
+    // Imprime o caminho mais curto encontrado e a distância total.
+    imprimeCaminho(grafo, melhorCaminho, distancia);
+    // Libera a memória alocada para o vetor do melhor caminho.
+    free(melhorCaminho);
+    // Libera a memória alocada para o grafo.
+    desalocarGrafo(grafo);
+    return 0; // Retorna 0 para indicar que o programa foi executado com sucesso.
+}
+\end{lstlisting}
+int numCidades;: Declaração de uma variável numCidades do tipo inteiro. Esta variável será usada para armazenar o número de cidades no grafo.
+
+scanf("%d", &numCidades);: Utiliza a função scanf para ler um valor inteiro da entrada padrão (teclado) e armazená-lo na variável numCidades. Isso permite que o usuário insira o número de cidades para as quais o programa encontrará o caminho mais curto.
+
+Alocação de Memória para o Grafo: A próxima etapa do código envolve a alocação de memória para representar o grafo ponderado. Isso é feito chamando a função alocarGrafo(numCidades), onde numCidades é o valor lido anteriormente. Essa alocação dinâmica de memória permite que o programa crie uma estrutura de dados para armazenar as informações do grafo.
+
+Leitura das Informações do Grafo: Após a alocação da memória do grafo, o programa lê as informações das distâncias entre as cidades e as armazena na estrutura do grafo. Isso é realizado pela função leGrafo(grafo).
+
+Alocação de Memória para o Caminho: Para armazenar o melhor caminho encontrado, excluindo a cidade de origem, o programa aloca memória para um vetor de inteiros chamado melhorCaminho. A alocação é feita para o tamanho (numCidades - 1), uma vez que o caminho começa e termina na mesma cidade. Isso é realizado pela linha:
+\begin{lstlisting}[language=C]
+int* melhorCaminho = (int*)malloc((numCidades - 1) * sizeof(int));
+\end{lstlisting}
+Encontrando o Caminho Mais Curto: O programa chama a função encontraCaminho(grafo, melhorCaminho) para encontrar o caminho mais curto no grafo. Essa função utiliza uma abordagem de força bruta, considerando todas as permutações das cidades para encontrar o caminho mais curto.
+
+Cálculo da Distância Total: Para calcular a distância total percorrida no caminho mais curto, o programa itera sobre as cidades no caminho e soma as distâncias entre elas. O resultado é armazenado na variável distancia.
+
+Impressão do Resultado: Após encontrar o caminho mais curto e calcular a distância total, o programa imprime o caminho e a distância na saída padrão. Isso é realizado pela função imprimeCaminho(grafo, melhorCaminho, distancia).
+
+Liberação de Memória: Para evitar vazamentos de memória, o programa libera a memória alocada dinamicamente para o vetor melhorCaminho e a estrutura do grafo. Isso é feito pelas linhas:
+\begin{lstlisting}[language=C]
+free(melhorCaminho);
+desalocarGrafo(grafo);
+\end{lstlisting}
+Retorno de 0: A função main() retorna 0, o que indica que o programa foi executado com sucesso.
+
+Essa função main() é essencial para orquestrar todo o processo de encontrar o caminho mais curto em um grafo ponderado, desde a leitura dos dados de entrada até a impressão do resultado e a liberação de memória. Ela encapsula as etapas fundamentais do programa e permite que o usuário interaja com o software, fornecendo o número de cidades para o cálculo do caminho mais curto.
+
+\section{Testes}
+Os testes foram realizados com os arquivos disponibilizados pelo professor da disciplina. No caso foram disponibilizados 5 arquivos com as entradas e 5 arquivos com as saídas esperadas.
+Para o primeiro caso, as entradas são 
+\begin{verbatim}
+4
+0 0 0 
+0 1 10
+0 2 15
+0 3 20
+1 0 10
+1 1 0 
+1 2 35
+1 3 25
+2 0 15
+2 1 35
+2 2 0
+2 3 30
+3 0 20
+3 1 25
+3 2 30
+3 3 0
+\end{verbatim}
+e a saída esperada deve ser \begin{verbatim}
+0 1 3 2 0 
+80
+\end{verbatim} 
+
+Para o segundo caso, as entradas são 
+\begin{verbatim}
+6
+0 0 0 
+0 1 1 
+0 2 2 
+0 3 1
+0 4 1
+0 5 2
+1 0 1
+1 1 0
+1 2 7
+1 3 1 
+1 4 4
+1 5 3
+2 0 2 
+2 1 7
+2 2 0 
+2 3 3 
+2 4 1
+2 5 1
+3 0 1 
+3 1 1 
+3 2 3 
+3 3 0
+3 4 8 
+3 5 1
+4 0 1 
+4 1 2 
+4 2 1 
+4 3 8
+4 4 0
+4 5 1
+5 0 2
+5 1 3
+5 2 1 
+5 3 1 
+5 4 1
+5 5 0
+\end{verbatim}
+e a saída esperada deve ser \begin{verbatim}
+0 1 3 5 2 4 0 
+6
+\end{verbatim} 
+
+Para o terceiro caso, as entradas são 
+\begin{verbatim}
+4
+0 0 0
+0 1 1 
+0 2 1 
+0 3 3 
+1 0 1
+1 1 0
+1 2 4
+1 3 5
+2 0 1
+2 1 4 
+2 2 0 
+2 3 6
+3 0 3 
+3 1 5 
+3 2 6 
+3 3 0
+\end{verbatim}
+e a saída esperada deve ser \begin{verbatim}
+0 1 3 2 0 
+13
+\end{verbatim} 
+Para o quarto caso, as entradas são 
+\begin{verbatim}
+5 
+0 0 0 
+0 1 2 
+0 2 0
+0 3 3
+0 4 6
+1 0 2 
+1 1 0
+1 2 4 
+1 3 3
+1 4 0
+2 0 0
+2 1 4
+2 2 0
+2 3 7
+2 4 3
+3 0 3 
+3 1 3
+3 2 7
+3 3 0
+3 4 3
+4 0 6
+4 1 0
+4 2 3
+4 3 3
+4 4 0
+\end{verbatim}
+e a saída esperada deve ser \begin{verbatim}
+0 1 2 4 3 0 
+15
+\end{verbatim} 
+Para o quinto caso, as entradas são 
+\begin{verbatim}
+5 
+0 0 0
+0 1 5
+0 2 10
+0 3 0
+0 4 1
+1 0 5
+1 1 0
+1 2 0 
+1 3 10
+1 4 1
+2 0 10
+2 1 0
+2 2 0
+2 3 2
+2 4 1
+3 0 0 
+3 1 10
+3 2 2
+3 3 0
+3 4 1
+4 0 1
+4 1 1
+4 2 1
+4 3 1
+4 4 0
+\end{verbatim}
+e a saída esperada deve ser \begin{verbatim}
+0 1 3 2 4 0 
+19
+\end{verbatim} 
+
+Felizmente o programa atendeu a todos os testes.
+
+
+\section{Análise}
+
+A análise dos resultados obtidos com o programa inclui a avaliação do tempo gasto para resolver o problema em relação ao tamanho do conjunto de cidades. Nesse programa, foi implementada uma abordagem de força bruta utilizando recursividade para encontrar o caminho mais curto, o que significa que ele explora todas as possíveis combinações de cidades para encontrar a solução.
+É importante notar que a eficiência computacional dessa abordagem pode ser fortemente afetada pelo aumento do número de cidades no conjunto. Conforme o número de cidades aumenta, o número de permutações possíveis cresce exponencialmente.
+Isso resulta em um alto custo computacional, o que significa que o tempo necessário para encontrar o caminho mais curto aumenta de forma exponencial com o número de cidades. Para conjuntos de cidades pequenos, a abordagem utilizando recursividade pode ser aceitável e fornecer soluções precisas. No entanto, para um grande número de cidades, a execução do programa pode levar um tempo impraticável, tornando-o ineficiente.
+
+Para resolver o problema de forma eficiente em conjuntos de cidades maiores, seriam necessárias abordagens mais sofisticadas, como algoritmos baseados em heurísticas. 
+
+Em resumo, a análise dos resultados destaca a importância de considerar o tamanho do conjunto de cidades ao escolher a abordagem para resolver o problema do caixeiro-viajante. Para conjuntos pequenos, a recursividade pode ser adequada, mas para conjuntos maiores, outras abordagens mais eficientes são necessárias para encontrar soluções dentro de um tempo razoável.
+
+\section{Conclusão}
+É importante destacar que o desenvolvimento do programa para resolver o problema do caixeiro viajante foi um desafio significativo e uma experiência enriquecedora. Uma das maiores dificuldades enfrentadas ao longo desse projeto foi a criação da lógica para encontrar o melhor caminho. Buscar a solução ideal utilizando uma abordagem de força bruta exigiu raciocínio cuidadoso e o uso de técnicas de recursividade.
+
+Um obstáculo adicional foi a falta de uma dupla para colaborar no projeto. Trabalhar sozinho significou que tive que lidar com os desafios sem a oportunidade de trocar ideias. No entanto, essa experiência me permitiu desenvolver minhas habilidades de resolução independente de problemas, o que considero valioso.
+
+
+Apesar dos desafios e das limitações da abordagem de força bruta, considero o trabalho produtivo, resultando em um programa funcional capaz de encontrar o caminho mais curto entre cidades e fornecer uma saída formatada de acordo com os padrões desejados. O desenvolvimento deste projeto fortaleceu minhas habilidades de programação e proporcionou uma introdução prática à resolução de problemas de otimização e à implementação de algoritmos em cenários do mundo real. Estou satisfeito com o resultado e com a superação dos desafios apresentados por este projeto desafiador.
+
+\section{Bibliografia}
+BHARGAVA, Aditya. Y. Entendendo Algoritmos: Um guia ilustrado para programadores e outros curiosos. Novatec, 2017.
+\end{document}
